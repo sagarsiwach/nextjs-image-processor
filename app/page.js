@@ -1,103 +1,123 @@
-import Image from "next/image";
+// app/page.jsx
+import fs from "node:fs/promises";
+import path from "node:path";
+import * as Config from "@/lib/config"; // Alias should work from jsconfig.json
+import * as ProductIO from "@/lib/product-io";
+import * as Status from "@/lib/status";
+import * as Utils from "@/lib/utils"; // Need sanitizeName if checking status
+import { ProductList } from "@/components/product-list";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button"; // For potential refresh button
+import Link from "next/link";
 
-export default function Home() {
+// This page needs fresh data on each load due to processing status
+export const dynamic = "force-dynamic";
+
+async function getProductsData() {
+  let productsData = [];
+  let error = null;
+  try {
+    const productFolders = await ProductIO.listProductFolders();
+
+    productsData = await Promise.all(
+      productFolders.map(async (folder) => {
+        const sanitizedName = Utils.sanitizeName(folder.name);
+        const config = await ProductIO.loadLocalProcessorConfig(folder.name);
+        const isProcessing = Status.isProductProcessing(sanitizedName);
+        const configExists = await Bun.file(
+          ProductIO.getLocalConfigFilePath(folder.name)
+        ).exists();
+
+        return {
+          originalName: folder.name,
+          sanitizedName: sanitizedName,
+          isConfigured: configExists, // Check if local config file exists
+          title: config.title || Config.DEFAULT_TITLE, // Use title from loaded config
+          isProcessing: isProcessing,
+        };
+      })
+    );
+  } catch (err) {
+    console.error("Error fetching product data for main page:", err);
+    error = `Failed to load product list from ${Config.INPUT_DIR}. Check permissions and console logs.`;
+    Status.addErrorLog(
+      `Error loading products for page.jsx: ${err.message}`,
+      false
+    );
+  }
+  return { productsData, error };
+}
+
+export default async function HomePage() {
+  const { productsData, error } = await getProductsData();
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.js
+    <main className="container mx-auto p-4 py-8 md:p-8">
+      <Card className="mb-6 border-blue-200 bg-blue-50/50 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl text-blue-900">
+            Image Processor Control Panel
+          </CardTitle>
+          <CardDescription className="text-blue-700">
+            Configure product variants, set hotspots, and process images for S3
+            upload. Generated JSON is saved locally in the{" "}
+            <code className="text-xs bg-blue-100 p-0.5 rounded">output/</code>{" "}
+            directory.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-sm text-blue-800 space-y-1">
+          <p>
+            <strong className="font-medium">Input Directory:</strong>{" "}
+            <code className="bg-blue-100 px-1 rounded text-xs">
+              {Config.INPUT_DIR}
             </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+          </p>
+          <p>
+            <strong className="font-medium">Output JSON Directory:</strong>{" "}
+            <code className="bg-blue-100 px-1 rounded text-xs">
+              {Config.OUTPUT_JSON_DIR}
+            </code>
+          </p>
+          <p>
+            <strong className="font-medium">Target S3 Bucket:</strong>{" "}
+            <code className="bg-blue-100 px-1 rounded text-xs">
+              {Config.S3_BUCKET || "Not Set!"}
+            </code>
+          </p>
+          <p className="pt-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/api/status" target="_blank">
+                View System Status
+              </Link>
+            </Button>
+          </p>
+        </CardContent>
+      </Card>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      <h2 className="text-xl font-semibold mb-4 text-gray-700">
+        Available Products
+      </h2>
+
+      {error && (
+        <Card className="mb-4 border-destructive bg-destructive/10">
+          <CardHeader>
+            <CardTitle className="text-destructive text-lg">
+              Error Loading Products
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-destructive/90 text-sm">
+            {error}
+          </CardContent>
+        </Card>
+      )}
+
+      <ProductList products={productsData} />
+    </main>
   );
 }
