@@ -1,4 +1,4 @@
-// src/components/hotspot-selector.jsx
+// components/hotspot-selector.jsx
 "use client"; // This component needs client-side interaction
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
@@ -22,8 +22,10 @@ export function HotspotSelector({
   onHotspotChange,
 }) {
   const [hotspot, setHotspot] = useState(initialHotspot || { x: 0.5, y: 0.5 });
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const containerRef = useRef(null);
   const imageRef = useRef(null);
+  const [imageSrc, setImageSrc] = useState(imageUrl);
 
   // Update marker position visually
   const markerStyle = {
@@ -51,14 +53,64 @@ export function HotspotSelector({
       const newHotspot = { x: relativeX, y: relativeY };
       setHotspot(newHotspot);
       onHotspotChange(sizeKey, newHotspot); // Notify parent
+
+      // Add timestamp parameter to force the image to reload with the new hotspot position
+      if (imageUrl) {
+        const timestamp = Date.now();
+        let newSrc = imageUrl;
+        if (imageUrl.includes("?")) {
+          newSrc = imageUrl.split("?")[0] + `?hotspot=${timestamp}`;
+        } else {
+          newSrc = imageUrl + `?hotspot=${timestamp}`;
+        }
+        setImageSrc(newSrc);
+      }
     },
-    [onHotspotChange, sizeKey]
+    [onHotspotChange, sizeKey, imageUrl]
   );
+
+  // Function to calculate proper dimensions based on aspect ratio
+  const calculateDimensions = useCallback(() => {
+    const isTabletOrPhone = sizeKey === "tablet" || sizeKey === "phone";
+    let width, height;
+
+    if (isTabletOrPhone) {
+      // Portrait orientation (9:16)
+      width = sizeWidth;
+      height = Math.round((width * 16) / 9);
+    } else {
+      // Landscape orientation (16:9)
+      width = sizeWidth;
+      height = Math.round((width * 9) / 16);
+    }
+
+    setDimensions({ width, height });
+  }, [sizeKey, sizeWidth]);
+
+  // Update dimensions when image loads and handle natural dimensions
+  const handleImageLoad = useCallback(() => {
+    if (imageRef.current) {
+      calculateDimensions();
+    }
+  }, [calculateDimensions]);
+
+  // Initialize dimensions on mount
+  useEffect(() => {
+    calculateDimensions();
+  }, [calculateDimensions]);
 
   // Effect to update internal state if initialHotspot prop changes
   useEffect(() => {
     setHotspot(initialHotspot || { x: 0.5, y: 0.5 });
   }, [initialHotspot]);
+
+  // Effect to update image URL when the imageUrl prop changes
+  useEffect(() => {
+    setImageSrc(imageUrl);
+  }, [imageUrl]);
+
+  // Determine if this size uses portrait orientation
+  const isPortrait = sizeKey === "tablet" || sizeKey === "phone";
 
   return (
     <div className="border p-3 rounded bg-gray-50 text-center flex flex-col">
@@ -68,19 +120,22 @@ export function HotspotSelector({
       </h4>
       <div
         ref={containerRef}
-        className="hotspot-container relative cursor-crosshair w-full max-w-[300px] mx-auto border border-muted aspect-[4/3] bg-muted/30 overflow-hidden" // Added aspect ratio and bg
+        className="hotspot-container relative cursor-crosshair w-full max-w-[300px] mx-auto border border-muted bg-muted/30 overflow-hidden"
+        style={{
+          aspectRatio: isPortrait ? "9/16" : "16/9",
+        }}
         onClick={handleClick}
         title="Click to set hotspot"
       >
-        {imageUrl ? (
+        {imageSrc ? (
           <img
             ref={imageRef}
             id={`hotspot-image-${sizeKey}`}
-            src={imageUrl} // Use basic img tag for local previews
+            src={imageSrc}
             alt={`Sample image for ${sizeKey}`}
-            className="block w-full h-full object-contain" // Ensure image fits
-            draggable="false" // Prevent dragging image itself
-            // Add error handling if needed
+            className="block w-full h-full object-cover" // Changed to object-cover
+            draggable="false"
+            onLoad={handleImageLoad}
             onError={(e) => (e.currentTarget.style.display = "none")}
           />
         ) : (
@@ -88,7 +143,7 @@ export function HotspotSelector({
             No sample image
           </div>
         )}
-        {imageUrl && (
+        {imageSrc && (
           <div
             id={`hotspot-marker-${sizeKey}`}
             className="hotspot-marker absolute w-[15px] h-[15px] rounded-full bg-red-600/80 border border-white shadow-md"
@@ -96,12 +151,23 @@ export function HotspotSelector({
           ></div>
         )}
       </div>
-      <div className="mt-2 text-xs text-muted-foreground">
-        <span>X:</span>
-        <span id={`hotspot-x-display-${sizeKey}`}>{hotspot.x.toFixed(3)}</span>
-        <span className="ml-2">Y:</span>
-        <span id={`hotspot-y-display-${sizeKey}`}>{hotspot.y.toFixed(3)}</span>
-        {/* Hidden inputs will be handled by the parent form state */}
+      <div className="mt-2 text-xs text-muted-foreground space-y-1">
+        <div>
+          <span>X:</span>
+          <span id={`hotspot-x-display-${sizeKey}`}>
+            {hotspot.x.toFixed(3)}
+          </span>
+          <span className="ml-2">Y:</span>
+          <span id={`hotspot-y-display-${sizeKey}`}>
+            {hotspot.y.toFixed(3)}
+          </span>
+        </div>
+        <div className="font-medium">
+          <span>
+            {dimensions.width}×{dimensions.height}
+          </span>
+          <span className="ml-2 text-muted">px</span>
+        </div>
       </div>
     </div>
   );

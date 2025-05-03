@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import * as ProductIO from "@/lib/product-io";
 import * as BackgroundTasks from "@/lib/background-tasks";
 import * as Status from "@/lib/status";
+import * as ImageProcessor from "@/lib/image-processing";
+import * as Config from "@/lib/config";
 // Remove the Mutex import from Bun
 import * as Utils from "@/lib/utils";
 
@@ -52,7 +54,23 @@ export async function POST(request, { params }) {
     );
   }
 
+  // Extract the clearCache flag
+  const shouldClearCache =
+    configData.clearCache === true && Config.ENABLE_CACHE_CLEARING;
+
   try {
+    // If cache clearing is requested, delete existing files
+    if (shouldClearCache) {
+      // Add log
+      console.log(`Cache clearing requested for ${productOriginalName}`);
+      Status.addErrorLog(
+        `Cache clearing requested for ${productOriginalName}`,
+        false
+      );
+      // Call the clearProductCache function
+      await ImageProcessor.clearProductCache(productOriginalName);
+    }
+
     // Save the relevant parts (title, subtitle, hotspots) to the local config file
     const saved = await ProductIO.saveLocalProcessorConfig(
       productOriginalName,
@@ -74,7 +92,11 @@ export async function POST(request, { params }) {
 
     if (enqueued) {
       return NextResponse.json(
-        { message: "Configuration saved and processing started." },
+        {
+          message: shouldClearCache
+            ? "Cache cleared, configuration saved and processing started."
+            : "Configuration saved and processing started.",
+        },
         { status: 202 }
       ); // 202 Accepted
     } else {
