@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-// Note: Fieldset is not a Shadcn component, use HTML tags
 import {
   Card,
   CardContent,
@@ -42,6 +41,7 @@ export function ConfigureForm({
   const [isPending, startTransition] = useTransition(); // For loading state during submission
   const [isProcessing, setIsProcessing] = useState(isInitiallyProcessing);
   const [clearCache, setClearCache] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form State
   const [title, setTitle] = useState(
@@ -137,6 +137,43 @@ export function ConfigureForm({
         setIsProcessing(false); // Reset processing state on error
       }
     });
+  };
+
+  // Handle deletion of existing files for this product
+  const handleDeleteFiles = async () => {
+    if (isDeleting || isProcessing || isPending) return; // Prevent action if busy
+
+    setIsDeleting(true);
+    try {
+      // Call a dedicated API endpoint for clearing files
+      const response = await fetch(
+        `/api/product/${encodeURIComponent(productOriginalName)}/clear-cache`,
+        {
+          method: "POST",
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      toast.success(
+        `Successfully deleted ${
+          result.deletedCount?.local || 0
+        } local files and ${
+          result.deletedCount?.s3 || 0
+        } S3 objects for ${productOriginalName}.`
+      );
+    } catch (error) {
+      console.error("File deletion error:", error);
+      toast.error(`Failed to delete files: ${error.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Optional: Poll for processing status if needed
@@ -308,27 +345,50 @@ export function ConfigureForm({
         </div>
       </fieldset>
 
-      {/* Cache Clearing Option */}
-      <div className="mt-4 flex items-center space-x-2 border-t pt-4 border-border">
-        <Switch
-          id="clear-cache"
-          checked={clearCache}
-          onCheckedChange={setClearCache}
-        />
-        <Label
-          htmlFor="clear-cache"
-          className="text-sm font-medium text-foreground"
-        >
-          Clear existing files from S3 before uploading
-        </Label>
-      </div>
+      {/* Cache and File Management */}
+      <fieldset className="border p-4 rounded border-border">
+        <legend className="text-lg font-semibold px-2 mb-2 text-foreground">
+          File Management
+        </legend>
+
+        {/* Cache Clearing Option */}
+        <div className="flex items-center space-x-2 mb-4">
+          <Switch
+            id="clear-cache"
+            checked={clearCache}
+            onCheckedChange={setClearCache}
+          />
+          <Label
+            htmlFor="clear-cache"
+            className="text-sm font-medium text-foreground"
+          >
+            Clear existing files before processing
+          </Label>
+        </div>
+
+        {/* Delete All Files Button */}
+        <div className="mt-4">
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={handleDeleteFiles}
+            disabled={isDeleting || isProcessing || isPending}
+          >
+            {isDeleting ? "Deleting..." : "Delete All Files for This Product"}
+          </Button>
+          <p className="text-xs text-muted-foreground mt-2">
+            This will permanently delete all processed files for this product,
+            both locally and from S3.
+          </p>
+        </div>
+      </fieldset>
 
       {/* Submit Button */}
       <div className="mt-6 pt-4 border-t border-border">
         <Button
           type="submit"
           className="w-full"
-          disabled={isProcessing || isPending} // Disable while processing or submitting
+          disabled={isProcessing || isPending || isDeleting} // Disable while processing or submitting
         >
           {isProcessing
             ? "Processing..."
