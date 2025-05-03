@@ -34,6 +34,7 @@ export function CropPreview({
   const aspect = isPortrait ? 9 / 16 : 16 / 9;
 
   // Handle image loaded - create initial centered crop
+  // Full onImageLoad function and crop change effect
   const onImageLoad = useCallback(
     (e) => {
       const { naturalWidth: width, naturalHeight: height } = e.currentTarget;
@@ -54,6 +55,27 @@ export function CropPreview({
       }
 
       // Set initial crop centered on the initial hotspot
+      // Start with default values if the initialHotspot doesn't have width/height
+      const hasFullCropInfo =
+        typeof initialHotspot.width === "number" &&
+        typeof initialHotspot.height === "number";
+
+      // If we have full crop info, use it directly
+      if (hasFullCropInfo) {
+        const newCrop = {
+          unit: "%",
+          x: initialHotspot.x * 100,
+          y: initialHotspot.y * 100,
+          width: initialHotspot.width * 100,
+          height: initialHotspot.height * 100,
+        };
+        setCrop(newCrop);
+        setCompletedCrop(newCrop);
+        return;
+      }
+
+      // Otherwise, create a default crop centered on the hotspot
+      // This is backward compatibility for old config format
       let cropX = initialHotspot.x * 100 - 25; // Center 50% width crop around hotspot
       let cropY = initialHotspot.y * 100 - 25; // Center 50% height crop around hotspot
 
@@ -83,17 +105,19 @@ export function CropPreview({
     [initialHotspot, isPortrait, sizeWidth, aspect]
   );
 
-  // When crop changes, update hotspot
+  // Update the effect that handles crop changes
   useEffect(() => {
     if (completedCrop && imgRef.current) {
-      // Calculate center point of crop as hotspot
-      const hotspot = {
-        x: (completedCrop.x + completedCrop.width / 2) / 100,
-        y: (completedCrop.y + completedCrop.height / 2) / 100,
+      // Save complete crop information directly
+      const cropInfo = {
+        x: completedCrop.x / 100,
+        y: completedCrop.y / 100,
+        width: completedCrop.width / 100,
+        height: completedCrop.height / 100,
       };
 
-      // Notify parent about hotspot change
-      onHotspotChange(sizeKey, hotspot);
+      // Notify parent about crop change with full crop information
+      onHotspotChange(sizeKey, cropInfo);
     }
   }, [completedCrop, onHotspotChange, sizeKey]);
 
