@@ -1,4 +1,6 @@
-// src/components/status-indicator.jsx
+// components/status-indicator.jsx
+"use client"; // Add this to make it a client component
+
 /**
  * Simple component to show Idle or Processing status.
  * @param {{isProcessing: boolean}} props

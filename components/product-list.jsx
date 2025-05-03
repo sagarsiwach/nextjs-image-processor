@@ -1,6 +1,8 @@
-// src/components/product-list.jsx
+// components/product-list.jsx
+"use client"; // Add this at the top to make it a client component
+
 import Link from "next/link";
-import { Button } from "@/components/ui/button"; // Adjust path based on Shadcn setup
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { StatusIndicator } from "./status-indicator"; // Import status indicator
+import { StatusIndicator } from "./status-indicator";
 
 export function ProductList({ products = [] }) {
   if (!products || products.length === 0) {
@@ -51,9 +53,7 @@ export function ProductList({ products = [] }) {
               <Link
                 href={`/configure/${encodeURIComponent(product.originalName)}`} // Link using ORIGINAL name
                 aria-disabled={product.isProcessing}
-                onClick={(e) => {
-                  if (product.isProcessing) e.preventDefault();
-                }} // Prevent click if disabled
+                // Remove the onClick handler - it's causing the error in server components
               >
                 Configure & Process
               </Link>

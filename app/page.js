@@ -30,9 +30,16 @@ async function getProductsData() {
         const sanitizedName = Utils.sanitizeName(folder.name);
         const config = await ProductIO.loadLocalProcessorConfig(folder.name);
         const isProcessing = Status.isProductProcessing(sanitizedName);
-        const configExists = await Bun.file(
-          ProductIO.getLocalConfigFilePath(folder.name)
-        ).exists();
+        
+        // Use Utils.getLocalConfigFilePath directly
+        const configPath = Utils.getLocalConfigFilePath(folder.name);
+        let configExists = false;
+        try {
+          await fs.access(configPath);
+          configExists = true;
+        } catch {
+          configExists = false;
+        }
 
         return {
           originalName: folder.name,

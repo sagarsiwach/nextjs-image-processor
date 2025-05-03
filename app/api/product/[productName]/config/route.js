@@ -1,7 +1,8 @@
-// src/app/api/product/[productName]/config/route.js
+// app/api/product/[productName]/config/route.js
 import { NextResponse } from "next/server";
 import * as ProductIO from "@/lib/product-io";
 import path from "node:path";
+import fs from "node:fs/promises"; // Added missing import
 import * as Config from "@/lib/config";
 
 export const dynamic = "force-dynamic";

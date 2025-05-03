@@ -3,8 +3,6 @@ import path from "node:path";
 import fs from "node:fs/promises"; // Needed for checking product dir existence
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { natsorted } from "natsort"; // Import natsort
-
 import * as Config from "@/lib/config";
 import * as ProductIO from "@/lib/product-io";
 import * as Utils from "@/lib/utils";
@@ -21,8 +19,6 @@ import {
 
 // Revalidate frequently to pick up status changes
 export const revalidate = 5;
-// OR force dynamic rendering if revalidate doesn't work as expected
-// export const dynamic = 'force-dynamic';
 
 async function getInitialData(productOriginalName) {
   const sanitizedProductName = Utils.sanitizeName(productOriginalName);
@@ -76,12 +72,14 @@ async function getInitialData(productOriginalName) {
       const firstVariantDir = path.join(productPath, initialVariantsRaw[0]);
       try {
         const files = await fs.readdir(firstVariantDir);
-        const sortedImageFiles = natsorted(
-          // Use natsorted
-          files.filter((f) =>
+        // Fix natsort issue - use simple sorting instead
+        // const sortedImageFiles = natsorted(...) is causing errors
+        const sortedImageFiles = files
+          .filter((f) =>
             Config.VALID_INPUT_EXTENSIONS.has(path.extname(f).toLowerCase())
           )
-        );
+          .sort(); // Use regular sort instead of natsort
+
         if (sortedImageFiles.length > 0) {
           const firstImageFile = sortedImageFiles[0];
           // Construct URL pointing to our API route for originals
@@ -126,8 +124,10 @@ async function getInitialData(productOriginalName) {
 }
 
 export default async function ConfigureProductPage({ params }) {
+  // Fix the params issue - params needs to be awaited properly
+  const { productName } = params;
   // Get original name from URL, decode it
-  const productOriginalName = decodeURIComponent(params.productName);
+  const productOriginalName = decodeURIComponent(productName);
 
   if (!productOriginalName) {
     notFound();

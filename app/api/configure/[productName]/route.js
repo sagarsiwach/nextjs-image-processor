@@ -1,12 +1,10 @@
-// src/app/api/configure/[productName]/route.js
+// app/api/configure/[productName]/route.js
 import { NextResponse } from "next/server";
 import * as ProductIO from "@/lib/product-io";
 import * as BackgroundTasks from "@/lib/background-tasks";
 import * as Status from "@/lib/status";
-import { Mutex } from "bun"; // Assuming Mutex is needed if background task modifies shared state
-
-// Use the lock defined in product-io or create one specific to this route
-// const configSaveLock = new Mutex(); // Or import if defined elsewhere
+// Remove the Mutex import from Bun
+import * as Utils from "@/lib/utils";
 
 /**
  * POST handler to save configuration and trigger background processing.
@@ -25,9 +23,7 @@ export async function POST(request, { params }) {
     );
   }
 
-  const sanitizedName = (await import("@/lib/utils")).sanitizeName(
-    productOriginalName
-  ); // Dynamic import if needed
+  const sanitizedName = Utils.sanitizeName(productOriginalName);
 
   // Prevent triggering if already processing
   if (Status.isProductProcessing(sanitizedName)) {
