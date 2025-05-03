@@ -1,6 +1,7 @@
 // app/page.jsx
 import fs from "node:fs/promises";
 import path from "node:path";
+import "../lib/server-init"; // Import server-init to ensure directories and env are set up
 import * as Config from "@/lib/config"; // Alias should work from jsconfig.json
 import * as ProductIO from "@/lib/product-io";
 import * as Status from "@/lib/status";
@@ -30,7 +31,7 @@ async function getProductsData() {
         const sanitizedName = Utils.sanitizeName(folder.name);
         const config = await ProductIO.loadLocalProcessorConfig(folder.name);
         const isProcessing = Status.isProductProcessing(sanitizedName);
-        
+
         // Use Utils.getLocalConfigFilePath directly
         const configPath = Utils.getLocalConfigFilePath(folder.name);
         let configExists = false;

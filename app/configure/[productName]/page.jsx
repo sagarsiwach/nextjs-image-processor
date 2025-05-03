@@ -3,6 +3,7 @@ import path from "node:path";
 import fs from "node:fs/promises"; // Needed for checking product dir existence
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import "../../../lib/server-init"; // Import server-init for environment and directory setup
 import * as Config from "@/lib/config";
 import * as ProductIO from "@/lib/product-io";
 import * as Utils from "@/lib/utils";
@@ -36,12 +37,19 @@ async function getInitialData(productOriginalName) {
     if (!stats.isDirectory()) throw new Error("Not a directory");
   } catch (err) {
     if (err.code === "ENOENT") {
-      return {
-        error: `Product input directory not found: ${productOriginalName}`,
-      };
+      // Try to create the directory
+      try {
+        await fs.mkdir(productPath, { recursive: true });
+        console.log(`Created missing product directory: ${productPath}`);
+      } catch (mkdirErr) {
+        return {
+          error: `Failed to create product directory: ${productOriginalName}. ${mkdirErr.message}`,
+        };
+      }
+    } else {
+      console.error(`Error accessing product directory ${productPath}:`, err);
+      return { error: "Error accessing product directory." };
     }
-    console.error(`Error accessing product directory ${productPath}:`, err);
-    return { error: "Error accessing product directory." };
   }
 
   try {
@@ -125,7 +133,7 @@ async function getInitialData(productOriginalName) {
 
 export default async function ConfigureProductPage({ params }) {
   // Fix the params issue - params needs to be awaited properly
-  const { productName } = params;
+  const productName = (await params).productName;
   // Get original name from URL, decode it
   const productOriginalName = decodeURIComponent(productName);
 

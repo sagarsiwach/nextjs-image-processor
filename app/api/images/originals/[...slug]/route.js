@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  * @param {{ params: { slug: string[] } }} context
  */
 export async function GET(_request, { params }) {
-  const { slug } = params;
+  const slug = (await params).slug;
 
   if (!slug || slug.length !== 3) {
     return new Response("Invalid image path format", { status: 400 });

@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import * as ProductIO from "@/lib/product-io"; // Use alias
 import path from "node:path";
+import fs from "node:fs/promises"; // Added missing import
 import * as Config from "@/lib/config";
 
 // Force dynamic evaluation for filesystem access
@@ -12,8 +13,8 @@ export const dynamic = "force-dynamic";
  * @param {Request} _request - The incoming request (unused).
  * @param {{ params: { productName: string } }} context - Route parameters.
  */
-export async function GET(_request, { params }) {
-  const { productName: productOriginalName } = params; // Use original name from URL segment
+export async function POST(request, { params }) {
+  const productOriginalName = (await params).productName; // Use original name
 
   if (!productOriginalName) {
     return NextResponse.json(
